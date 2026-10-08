@@ -1,0 +1,96 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { BookOpen, Check, RotateCcw, Sparkles, Star, X, Volume2, WifiOff, Smartphone } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+
+const demo = {
+  "Groep 3": ["boom", "vis", "maan", "boek", "roos", "fiets", "huis", "school"],
+  "Groep 4": ["vriend", "straks", "markt", "schrijven", "feest", "verhaal", "wereld", "vraag"],
+  "Groep 5": ["eigenlijk", "belangrijk", "bibliotheek", "verschil", "vrolijk", "misschien", "antwoord", "omgeving"],
+  "Groep 6": ["de architectuur", "authentiek", "berucht", "het dialect", "eeuwenoud", "exclusief", "de gevel", "de grachtengordel", "hedendaags", "historisch", "internationaal", "levendig", "het monument", "nationaal", "oorspronkelijk", "reserveren", "slenteren", "statig", "het tarief", "de aangifte", "de afkomst", "het appartement", "de bovenwoning", "de buitenwijk", "de criminaliteit", "de cultuur", "de eengezinswoning", "de galerij", "de groenvoorziening", "heling", "de hoogbouw", "de leegstand", "massaal", "multicultureel", "de nationaliteit", "de overlast", "het portiek", "preventief", "rumoerig"],
+  "Groep 7": ["waarschijnlijk", "maatschappij", "conclusie", "informatie", "verschijnsel", "zelfstandig", "onmiddellijk", "traditie"],
+  "Groep 8": ["verantwoordelijk", "communicatie", "democratie", "interpretatie", "argument", "perspectief", "onderzoeken", "uiteindelijk"]
+};
+
+const groups = Object.keys(demo);
+
+export default function App() {
+  const [group, setGroup] = useState(() => localStorage.getItem("woordjes-group") || "Groep 6");
+  const [mode, setMode] = useState("leren");
+  const [index, setIndex] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [score, setScore] = useState(0);
+  const [done, setDone] = useState(0);
+  const [feedback, setFeedback] = useState(null);
+  const [stars, setStars] = useState(() => Number(localStorage.getItem("woordjes-stars") || 0));
+  const [online, setOnline] = useState(() => navigator.onLine);
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const words = useMemo(() => demo[group], [group]);
+  const word = words[index % words.length];
+
+  useEffect(() => {
+    localStorage.setItem("woordjes-group", group);
+    localStorage.setItem("woordjes-stars", String(stars));
+  }, [group, stars]);
+
+
+  useEffect(() => {
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    const onInstall = (e) => { e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("beforeinstallprompt", onInstall);
+    return () => {
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("beforeinstallprompt", onInstall);
+    };
+  }, []);
+
+
+  const reset = (g = group) => { setIndex(0); setAnswer(""); setScore(0); setDone(0); setFeedback(null); setGroup(g); };
+  const speak = (text) => { if ("speechSynthesis" in window) { speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = "nl-NL"; u.rate = .78; speechSynthesis.speak(u); } };
+  const next = () => { setIndex(i => (i + 1) % words.length); setAnswer(""); setFeedback(null); };
+  const check = () => {
+    if (!answer.trim()) return;
+    const ok = answer.trim().toLocaleLowerCase("nl-NL") === word.toLocaleLowerCase("nl-NL");
+    setFeedback(ok); setDone(d => d + 1);
+    if (ok) { setScore(s => s + 1); setStars(s => s + 1); }
+  };
+  const install = async () => {
+    if (installPrompt) { installPrompt.prompt(); await installPrompt.userChoice; setInstallPrompt(null); }
+  };
+  return (
+    <main className="min-h-[100dvh] bg-gradient-to-b from-sky-50 via-white to-amber-50 text-slate-800 px-3 py-[max(12px,env(safe-area-inset-top))] pb-[max(20px,env(safe-area-inset-bottom))] md:p-8 select-none">
+      <div className="max-w-5xl mx-auto">
+        <header className="flex items-start justify-between gap-3 mb-5 md:mb-7">
+          <div><div className="inline-flex items-center gap-2 text-sky-700 font-semibold text-xs md:text-sm mb-1"><Sparkles size={15}/> Leren wordt een avontuur</div><h1 className="text-3xl md:text-5xl font-black tracking-tight">Woordjesavontuur</h1></div>
+          <div className="flex items-center gap-2 bg-white rounded-2xl px-3 py-2 shadow-sm border"><Star className="text-amber-400 fill-amber-400" size={20}/><b>{stars}</b></div>
+        </header>
+
+        {!online && <div className="mb-4 rounded-2xl bg-amber-100 text-amber-800 px-4 py-3 flex gap-2 items-center text-sm font-semibold"><WifiOff size={18}/> Je bent offline. Opgeslagen oefeningen blijven beschikbaar.</div>}
+        {installPrompt && <button onClick={install} className="w-full mb-4 rounded-2xl bg-emerald-600 text-white px-4 py-3 font-bold flex justify-center items-center gap-2 shadow-sm"><Smartphone size={18}/> Zet Woordjesavontuur op mijn telefoon</button>}
+
+
+        <div className="grid lg:grid-cols-[250px_1fr] gap-4 md:gap-6">
+          <aside className="space-y-3">
+            <Card className="rounded-3xl border-0 shadow-sm"><CardContent className="p-3"><div className="font-bold mb-2 flex items-center gap-2"><BookOpen size={18}/> Kies je groep</div><div className="grid grid-cols-3 lg:grid-cols-1 gap-2">{groups.map(g => <Button key={g} variant={g===group ? "default" : "ghost"} className={`rounded-xl px-2 ${g===group ? "bg-sky-600 hover:bg-sky-700" : ""}`} onClick={()=>reset(g)}>{g.replace("Groep ", "G")}</Button>)}</div></CardContent></Card>
+            <div className="grid grid-cols-2 gap-2"><Button className="rounded-xl h-12" variant={mode === "leren" ? "default":"outline"} onClick={()=>{setMode("leren");setFeedback(null)}}>Bekijken</Button><Button className="rounded-xl h-12" variant={mode === "dictee" ? "default":"outline"} onClick={()=>{setMode("dictee");setFeedback(null);setAnswer("")}}>Dictee</Button></div>
+          </aside>
+
+          <section>
+            <div className="flex justify-between mb-2 text-sm font-medium text-slate-500"><span>{group}</span><span>{done} geoefend · {score} goed</span></div>
+            <div className="h-3 bg-white rounded-full overflow-hidden mb-4 shadow-inner"><motion.div className="h-full bg-gradient-to-r from-sky-400 to-emerald-400" animate={{width:`${Math.min(100,(done/words.length)*100)}%`}} /></div>
+            <Card className="rounded-[2rem] border-0 shadow-xl shadow-sky-100/70 overflow-hidden"><CardContent className="p-6 md:p-12 min-h-[55dvh] md:min-h-[390px] flex items-center justify-center text-center">              <AnimatePresence mode="wait"><motion.div key={`${group}-${index}-${mode}`} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-12}} className="w-full">
+                {mode === "leren" ? <><div className="text-xs uppercase tracking-[.2em] font-bold text-sky-600 mb-5">Lees het woord</div><div className="text-4xl md:text-7xl font-black mb-8 break-words">{word}</div><Button size="lg" variant="outline" className="rounded-full gap-2 h-14 px-6" onClick={()=>speak(word)}><Volume2/> Luister</Button><div className="mt-8"><Button size="lg" className="rounded-2xl bg-sky-600 hover:bg-sky-700 px-10 h-14 w-full sm:w-auto" onClick={next}>Volgende woord</Button></div></> : <><div className="text-xs uppercase tracking-[.2em] font-bold text-violet-600 mb-5">Luister en typ</div><Button onClick={()=>speak(word)} className="w-20 h-20 rounded-full bg-violet-600 hover:bg-violet-700 mb-7"><Volume2 size={34}/></Button><div className="max-w-md mx-auto flex flex-col sm:flex-row gap-2"><input autoCapitalize="none" autoCorrect="off" spellCheck="false" aria-label="Typ het woord" value={answer} onChange={e=>setAnswer(e.target.value)} onKeyDown={e=>e.key==="Enter" && (feedback===null?check():next())} placeholder="Typ het woord…" className="w-full flex-1 text-xl rounded-2xl border-2 border-slate-200 px-4 py-4 outline-none focus:border-violet-400"/><Button size="lg" className="h-14 rounded-2xl bg-violet-600 hover:bg-violet-700" onClick={feedback===null?check:next}>{feedback===null?"Nakijken":"Verder"}</Button></div><AnimatePresence>{feedback !== null && <motion.div initial={{opacity:0,scale:.95}} animate={{opacity:1,scale:1}} className={`mt-5 inline-flex items-center gap-2 px-4 py-3 rounded-2xl font-bold ${feedback?"bg-emerald-50 text-emerald-700":"bg-rose-50 text-rose-700"}`}>{feedback?<><Check/> Super, goed geschreven!</>:<><X/> Bijna! Het woord is <span className="underline">{word}</span>.</>}</motion.div>}</AnimatePresence></>}
+              </motion.div></AnimatePresence>
+            </CardContent></Card>
+            <div className="mt-3 flex justify-end"><button onClick={()=>reset()} className="flex items-center gap-1 text-xs text-slate-400"><RotateCcw size={13}/> Oefening opnieuw</button></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}
